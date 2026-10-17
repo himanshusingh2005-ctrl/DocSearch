@@ -1,0 +1,31 @@
+# Build
+build/
+bin/
+out/
+cmake-build-debug/
+
+# Qt Creator user-specific files
+*.user
+.user.
+.qtcreator
+
+# Compiled files
+*.exe
+*.dll
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/
+
+# Generated/runtime data
+data/*
+!data/.gitkeep
+
+# Testing/Experimenting
+tests/
