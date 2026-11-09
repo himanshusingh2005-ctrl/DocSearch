@@ -1,6 +1,6 @@
 #include "SearchWindow.hpp"
-#include "SearchWindow.hpp"
 #include "ResultRanker.hpp"
+#include "Tokenizer.hpp"
 
 #include <QLineEdit>
 #include <QPushButton>
@@ -134,46 +134,85 @@ void SearchWindow::loadDocuments()
 void SearchWindow::performSearch()
 {
     if (!documentsLoaded) {
+
         QMessageBox::warning(
-            this, "Documents Not Loaded",
+            this,
+            "Documents Not Loaded",
             "Load a directory before searching."
-            );
+        );
+
         return;
     }
+
 
     const std::string query =
         searchInput->text().trimmed().toStdString();
 
+
     if (query.empty())
         return;
 
+
     resultsList->clear();
 
-    auto result = searchEngine.search(query);
 
-    if (result == nullptr) {
+    // Tokenize the search query
+
+    vector<string> queryTerms = Tokenizer::tokenize(query);
+
+
+    if (queryTerms.empty()) {
         resultsList->addItem("No results found.");
         return;
     }
 
-    ResultRanker resultRanker;
-    const auto& rankedResults = resultRanker.rank(result);
 
-    for (const auto& [docID, frequency] : rankedResults) {
-        if (docID < 1 || static_cast<std::size_t>(docID) > documents.size()) {
+    // Create Result Ranker
+
+    ResultRanker resultRanker;
+
+
+    // Set maximum number of results
+
+    int k = 5;
+
+
+    // Calculate TF-IDF and retrieve Top K results
+
+    auto rankedResults = resultRanker.rankTopK(
+        queryTerms,
+        m_index,
+        static_cast<int>(documents.size()),
+        k
+    );
+
+
+    // Display results
+
+    for (const auto& [docID, score] : rankedResults) {
+
+        if (docID < 1 ||
+            static_cast<size_t>(docID) > documents.size()) {
+
             continue;
         }
 
+
         const auto& document = documents[docID - 1];
 
+
         const QString itemText =
-            QString("%1  |  Frequency: %2")
+            QString("%1  |  TF-IDF Score: %2")
                 .arg(QString::fromStdString(document.getTitle()))
-                .arg(frequency);
+                .arg(score, 0, 'f', 3);
+
 
         resultsList->addItem(itemText);
     }
 
-    if (resultsList->count() == 0)
+
+    if (resultsList->count() == 0) {
+
         resultsList->addItem("No results found.");
+    }
 }
