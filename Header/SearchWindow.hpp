@@ -2,16 +2,19 @@
 #define SEARCHWINDOW_HPP
 
 #include <QMainWindow>
-#include <QStringList>
 
 #include "Document.hpp"
 #include "InvertedIndex.hpp"
 #include "SearchEngine.hpp"
 #include "ResultRanker.hpp"
+#include "Trie.hpp"
 
 class QLineEdit;
 class QPushButton;
 class QListWidget;
+class QComboBox;
+class QCompleter;
+class QStringListModel;
 
 class SearchWindow : public QMainWindow
 {
@@ -19,9 +22,13 @@ class SearchWindow : public QMainWindow
 
 public:
     explicit SearchWindow(QWidget *parent = nullptr);
+    ~SearchWindow();
 
     signals:
         void searchRequested(const QString& query);
+
+private slots:
+    void browseDirectory();
 
 private:
     void loadDocuments();
@@ -31,13 +38,22 @@ private:
     QLineEdit *searchInput;
     QPushButton *searchButton;
     QPushButton *loadButton;
+    QPushButton* browseButton;
     QListWidget *resultsList;
+    QComboBox* rankingSelector;
+    QCompleter* completer;
+    QStringListModel* completionModel;
 
     InvertedIndex m_index;
-    SearchEngine searchEngine;
-    std::vector<Document> documents;
+    std::vector<Document> m_documents;
+    Trie m_trie;
+    bool m_documentsLoaded = false;
 
-    bool documentsLoaded = false;
+    SearchEngine searchEngine;
+    RankingStrategy* rankingStrategy = nullptr;
+    
+    void changeRankingStrategy(int index);
+    void updateSuggestions(const QString& text);
 };
 
-#endif // SEARCHWINDOW_HPP
+#endif
