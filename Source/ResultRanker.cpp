@@ -29,8 +29,9 @@ SearchResults FrequencyRanker::rank(const SearchResults& results) const {
     int n = rankedResults.size();
 
     // Build min-heap
-    for (int i = n / 2 - 1; i >= 0; i--)
-        heapify(rankedResults, n, i);
+    for (int i = n / 2 - 1; i >= 0; i--) {
+    heapify(rankedResults, n, i);
+    }
 
     // Extract elements
     for (int i = n - 1; i > 0; i--) {
