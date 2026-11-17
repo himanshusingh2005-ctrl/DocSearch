@@ -1,4 +1,3 @@
-#include <algorithm>
 #include "ResultRanker.hpp"
 
 void FrequencyRanker::heapify(SearchResults& results, int n, int i) const{
