@@ -1,20 +1,25 @@
 #include "ResultRanker.hpp"
 
-void FrequencyRanker::heapify(SearchResults& results, int n, int i) const{
+void FrequencyRanker::heapify(SearchResults& results, int n, int i) const {
     int smallest = i;
     int left = 2 * i + 1;
     int right = 2 * i + 2;
 
-    if (left < n && results[left].frequency < results[smallest].frequency)
+    if (left < n && results[left].frequency < results[smallest].frequency) {
         smallest = left;
-
-    if (right < n && results[right].frequency < results[smallest].frequency)
-        smallest = right;
-
-    if (smallest != i) {
-        std::swap(results[i], results[smallest]);
-        heapify(results, n, smallest);
     }
+
+    if (right < n && results[right].frequency < results[smallest].frequency) {
+        smallest = right;
+    }
+
+    if (smallest == i) {
+        return;
+    }
+
+    std::swap(results[i], results[smallest]);
+
+    heapify(results, n, smallest);
 }
 
 SearchResults FrequencyRanker::rank(const SearchResults& results) const {
