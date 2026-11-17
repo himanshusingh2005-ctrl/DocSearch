@@ -5,17 +5,23 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QListWidget>
+#include <QFileDialog>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QWidget>
 #include <QMessageBox>
+#include <QComboBox>
+#include <QCompleter>
+#include <QStringListModel>
+#include <QDebug>
 
 #include <filesystem>
 #include <string>
+#include <stdexcept>
 
 SearchWindow::SearchWindow(QWidget *parent)
-    : QMainWindow(parent), searchEngine(m_index)
+    : QMainWindow(parent), searchEngine(m_documents, m_index)
 {
     setWindowTitle("Document Search Engine");
     resize(800, 550);
@@ -31,21 +37,46 @@ SearchWindow::SearchWindow(QWidget *parent)
         "font-weight: bold;"
         "padding: 10px;"
     );
-
+<<<<<<< HEAD
     
+=======
+    // Direcroty Input
+>>>>>>> cf99497e215e6a22e27ddabbb57ff948a227ff0b
     directoryInput = new QLineEdit(centralWidget);
     directoryInput->setPlaceholderText("Enter document directory path...");
 
+    browseButton = new QPushButton("Browse", centralWidget);
     loadButton = new QPushButton("Load Documents", centralWidget);
 
     // Search bar and button
     searchInput = new QLineEdit(centralWidget);
     searchInput->setPlaceholderText("Enter your search query...");
 
+    completionModel = new QStringListModel(this);
+
+    completer = new QCompleter(completionModel, this);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    completer->setCompletionMode(QCompleter::PopupCompletion);
+
+    searchInput->setCompleter(completer);
+
     searchButton = new QPushButton("Search", centralWidget);
+
+    // Rank Strategy Selector
+    rankingSelector = new QComboBox(this);
+
+    rankingSelector->addItem("Frequency");
+    rankingSelector->addItem("TF-IDF");
+
+    rankingStrategy = new FrequencyRanker();
+
+    auto *directoryLayout = new QHBoxLayout();
+    directoryLayout->addWidget(directoryInput);
+    directoryLayout->addWidget(browseButton);
 
     auto *searchLayout = new QHBoxLayout();
     searchLayout->addWidget(searchInput);
+    searchLayout->addWidget(rankingSelector);
     searchLayout->addWidget(searchButton);
 
     // Results area
@@ -62,7 +93,7 @@ SearchWindow::SearchWindow(QWidget *parent)
     // Layout
     mainLayout->addWidget(title);
     mainLayout->addWidget(new QLabel("Document Directory:", centralWidget));
-    mainLayout->addWidget(directoryInput);
+    mainLayout->addLayout(directoryLayout);
     mainLayout->addWidget(loadButton);
 
     mainLayout->addLayout(searchLayout);
@@ -72,148 +103,162 @@ SearchWindow::SearchWindow(QWidget *parent)
     setCentralWidget(centralWidget);
 
     // Load documents
-    connect(loadButton, &QPushButton::clicked,
-            this, &SearchWindow::loadDocuments);
+    connect(loadButton, &QPushButton::clicked, this, &SearchWindow::loadDocuments);
+    connect(browseButton, &QPushButton::clicked, this, &SearchWindow::browseDirectory);
 
     // Search button and Enter key
     connect(searchButton, &QPushButton::clicked, this,&SearchWindow::performSearch);
+    connect(searchInput, &QLineEdit::returnPressed, searchButton, &QPushButton::click);
+    connect(searchInput, &QLineEdit::textEdited, this, &SearchWindow::updateSuggestions);
 
-    connect(searchInput, &QLineEdit::returnPressed,
-            searchButton, &QPushButton::click);
+    //Ranking strategy
+    connect(rankingSelector, &QComboBox::currentIndexChanged, this, &SearchWindow::changeRankingStrategy);
 }
 
-void SearchWindow::loadDocuments()
-{
-    if (documentsLoaded) {
-        QMessageBox::information(
-            this, "Already Loaded",
-            "Documents have already been loaded. "
-            "Restart the application to load another directory."
-            );
-        return;
-    }
+SearchWindow::~SearchWindow() {
+    delete rankingStrategy;
+}
 
-    const std::string directory =
-        directoryInput->text().trimmed().toStdString();
-
-    if (directory.empty() || !fs::is_directory(directory)) {
-        QMessageBox::warning(
-            this, "Invalid Directory",
-            "Please enter a valid directory path."
-            );
-        return;
-    }
+void SearchWindow::loadDocuments() {
+    const std::string directory = directoryInput->text().trimmed().toStdString();
+    resultsList->clear();
+    m_documentsLoaded = false;
 
     try {
-        documents = Document::loadDirectory(directoryInput->text().trimmed().toStdString());
+        //load the documents
+        m_index.clear();
+        m_trie.clear();
+        m_documents = loadDirectory(directory);
 
-        for (const auto& document : documents) {
-            m_index.insert(document);
+        QString errors;
+
+        //build the inverted index of documents
+        for (const auto& document : m_documents) {
+            try {
+                m_index.insert(document);
+
+                const auto tokens = Tokenizer::tokenize(document.getContent());
+
+                for (const auto& token : tokens) {
+                    if (!token.empty())
+                        m_trie.insert(token);
+                }
+            }
+            catch (const std::exception& e) {
+                errors += QString::fromStdString(document.getTitle() + ": " + e.what()) + '\n';
+            }
         }
 
-        if (documents.empty()) {
-            QMessageBox::information(
-                this, "No Documents",
+        if (!errors.isEmpty()) {
+            QMessageBox::warning(this,"Indexing Warnings",
+                "Some documents could not be indexed:\n\n" + errors
+            );
+        }
+
+        if (m_documents.empty()) {
+            QMessageBox::information(this, "No Documents",
                 "No files were found in this directory."
-                );
+            );
             return;
         }
 
-        documentsLoaded = true;
-        directoryInput->setEnabled(false);
-        loadButton->setEnabled(false);
+        m_documentsLoaded = true;
 
+        QMessageBox::information(this, "Success",
+            QString("%1 documents loaded successfully.").arg(m_documents.size())
+        );
     }
-    catch (const fs::filesystem_error& e) {
-        QMessageBox::critical(
-            this, "Directory Error",
+    catch (const std::exception& e) {
+        QMessageBox::critical(this, "Directory Error",
             QString::fromStdString(e.what())
-            );
+        );
     }
 }
 
-void SearchWindow::performSearch()
-{
-    if (!documentsLoaded) {
-
-        QMessageBox::warning(
-            this,
-            "Documents Not Loaded",
+void SearchWindow::performSearch() {
+    if (!m_documentsLoaded) {
+        QMessageBox::warning(this, "Documents Not Loaded",
             "Load a directory before searching."
         );
-
         return;
     }
 
-
-    const std::string query =
-        searchInput->text().trimmed().toStdString();
-
+    const std::string query = searchInput->text().trimmed().toStdString();
 
     if (query.empty())
         return;
 
-
     resultsList->clear();
 
+    try {
+        SearchResults results = searchEngine.search(query);
+        results = rankingStrategy->rank(results);
 
-    // Tokenize the search query
+        for (const auto& result : results) {
+            if (result.documentID < 1 || result.documentID > m_documents.size()) {
+                continue;
+            }
 
-    vector<string> queryTerms = Tokenizer::tokenize(query);
+            const auto& document = m_documents[result.documentID - 1];
 
+            QString itemText;
 
-    if (queryTerms.empty()) {
-        resultsList->addItem("No results found.");
-        return;
-    }
+            if (rankingSelector->currentIndex() == 0) {
+                itemText = QString("%1  |  Frequency: %2")
+                    .arg(QString::fromStdString(document.getTitle()))
+                    .arg(result.frequency);
+            }
+            else {
+                itemText = QString("%1  |  TF-IDF: %2")
+                    .arg(QString::fromStdString(document.getTitle()))
+                    .arg(result.score, 0, 'f', 4);
+            }
 
-
-    // Create Result Ranker
-
-    ResultRanker resultRanker;
-
-
-    // Set maximum number of results
-
-    int k = 5;
-
-
-    // Calculate TF-IDF and retrieve Top K results
-
-    auto rankedResults = resultRanker.rankTopK(
-        queryTerms,
-        m_index,
-        static_cast<int>(documents.size()),
-        k
-    );
-
-
-    // Display results
-
-    for (const auto& [docID, score] : rankedResults) {
-
-        if (docID < 1 ||
-            static_cast<size_t>(docID) > documents.size()) {
-
-            continue;
+            resultsList->addItem(itemText);
         }
 
-
-        const auto& document = documents[docID - 1];
-
-
-        const QString itemText =
-            QString("%1  |  TF-IDF Score: %2")
-                .arg(QString::fromStdString(document.getTitle()))
-                .arg(score, 0, 'f', 3);
-
-
-        resultsList->addItem(itemText);
+        if (resultsList->count() == 0)
+            resultsList->addItem("No results found.");
     }
-
-
-    if (resultsList->count() == 0) {
-
-        resultsList->addItem("No results found.");
+    catch (const std::exception& e) {
+        QMessageBox::warning(this, "Search Error",
+            QString::fromStdString(e.what())
+        );
     }
+}
+
+
+void SearchWindow::browseDirectory() {
+    const QString directory = QFileDialog::getExistingDirectory(this,
+        "Select Document Directory", directoryInput->text()
+    );
+
+    if (!directory.isEmpty())
+        directoryInput->setText(directory);
+}
+
+void SearchWindow::changeRankingStrategy(int index) {
+    delete rankingStrategy;
+
+    if (index == 0)
+        rankingStrategy = new FrequencyRanker();
+    else
+        rankingStrategy = new TFIDFRanker();
+}
+
+void SearchWindow::updateSuggestions(const QString& text) {
+    const QString prefix = text.section(' ', -1);
+
+    completer->setCompletionPrefix(prefix);
+
+    const auto suggestions = m_trie.getSuggestions(prefix.toStdString());
+
+    QStringList words;
+
+    for (const auto& word : suggestions)
+        words.append(QString::fromStdString(word));
+
+    completionModel->setStringList(words);
+    if (!words.isEmpty())
+        completer->complete();
 }
