@@ -1,4 +1,5 @@
 #include "ResultRanker.hpp"
+#include<algorithm>
 
 void FrequencyRanker::heapify(SearchResults& results, int n, int i) const {
     int smallest = i;
