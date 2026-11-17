@@ -26,6 +26,10 @@ void FrequencyRanker::heapify(SearchResults& results, int n, int i) const {
 SearchResults FrequencyRanker::rank(const SearchResults& results) const {
     SearchResults rankedResults = results;
 
+    if (rankedResults.size() <= 1) {
+    return rankedResults;
+    }
+
     int n = rankedResults.size();
 
     // Build min-heap
