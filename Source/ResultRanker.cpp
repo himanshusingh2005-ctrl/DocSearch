@@ -72,7 +72,7 @@ SearchResults TFIDFRanker::rank(const SearchResults& results) const {
     SearchResults rankedResults = results;
 
     // Return if there are zero or one results
-    if (rankedResults.size() < 1) {
+    if (rankedResults.size() <= 1) {
         return rankedResults;
     }
 
