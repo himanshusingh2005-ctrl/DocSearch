@@ -32,6 +32,7 @@ SearchWindow::SearchWindow(QWidget *parent)
         "padding: 10px;"
     );
 
+    
     directoryInput = new QLineEdit(centralWidget);
     directoryInput->setPlaceholderText("Enter document directory path...");
 
