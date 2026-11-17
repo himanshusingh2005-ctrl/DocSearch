@@ -67,13 +67,17 @@ void TFIDFRanker::heapify(SearchResults& results, int n, int i) const {
 SearchResults TFIDFRanker::rank(const SearchResults& results) const {
     SearchResults rankedResults = results;
 
+    if (rankedResults.size() <= 1) {
+        return rankedResults;
+    }
+
     int n = rankedResults.size();
 
     // Build min-heap
     for (int i = n / 2 - 1; i >= 0; i--){
         heapify(rankedResults, n, i);
     }
-    
+
     // Extract elements
     for (int i = n - 1; i > 0; i--) {
         std::swap(rankedResults[0], rankedResults[i]);
