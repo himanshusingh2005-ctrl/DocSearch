@@ -16,7 +16,7 @@ private:
     void heapify(SearchResults& results, int n, int i) const;
 };
 
-class TFIDFRanker final : public RankingStrategy {
+class TFIDFRanker : public RankingStrategy {
 public:
     SearchResults rank(const SearchResults& results) const override;
 
