@@ -47,16 +47,21 @@ void TFIDFRanker::heapify(SearchResults& results, int n, int i) const {
     int left = 2 * i + 1;
     int right = 2 * i + 2;
 
-    if (left < n && results[left].score < results[smallest].score)
+    if (left < n && results[left].score < results[smallest].score) {
         smallest = left;
-
-    if (right < n && results[right].score < results[smallest].score)
-        smallest = right;
-
-    if (smallest != i) {
-        std::swap(results[i], results[smallest]);
-        heapify(results, n, smallest);
     }
+
+    if (right < n && results[right].score < results[smallest].score) {
+        smallest = right;
+    }
+
+    if (smallest == i) {
+        return;
+    }
+
+    std::swap(results[i], results[smallest]);
+
+    heapify(results, n, smallest);
 }
 
 SearchResults TFIDFRanker::rank(const SearchResults& results) const {
