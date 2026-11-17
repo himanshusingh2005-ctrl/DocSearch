@@ -1,7 +1,5 @@
 #ifndef RESULT_RANKER_HPP
-
 #define RESULT_RANKER_HPP
-
 #include "SearchEngine.hpp"
 
 class RankingStrategy {
