@@ -8,7 +8,7 @@ public:
     virtual ~RankingStrategy() = default;
 };
 
-class FrequencyRanker : public RankingStrategy {
+class FrequencyRanker final : public RankingStrategy {
 public:
     SearchResults rank(const SearchResults& results) const override;
 
